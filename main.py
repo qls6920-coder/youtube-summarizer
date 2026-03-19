@@ -17,7 +17,7 @@ app = FastAPI(title="YouTube Summarizer API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*", "https://qls6920-coder.github.io"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
