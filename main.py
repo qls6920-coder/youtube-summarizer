@@ -3,13 +3,13 @@ import re
 import httpx
 import json
 import tempfile
-import subprocess
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+import yt_dlp
 
 load_dotenv()
 
@@ -17,7 +17,7 @@ app = FastAPI(title="YouTube Summarizer API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "https://qls6920-coder.github.io"],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -60,24 +60,21 @@ def get_transcript_from_captions(video_id: str) -> str | None:
 
 def get_transcript_from_audio(url: str) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
-        audio_path = os.path.join(tmpdir, "audio.m4a")
+        audio_path = os.path.join(tmpdir, "audio.%(ext)s")
 
-        # ffmpeg 없이 m4a 포맷으로 다운로드
-        result = subprocess.run(
-            [
-                "yt-dlp",
-                "-f", "bestaudio[ext=m4a]/bestaudio",
-                "--no-playlist",
-                "-o", audio_path,
-                url,
-            ],
-            capture_output=True, text=True, timeout=120
-        )
+        ydl_opts = {
+            "format": "bestaudio[ext=m4a]/bestaudio",
+            "outtmpl": audio_path,
+            "noplaylist": True,
+            "quiet": True,
+        }
 
-        if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"오디오 다운로드 실패: {result.stderr}")
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"오디오 다운로드 실패: {str(e)}")
 
-        # 실제 다운로드된 파일 찾기
         files = [f for f in os.listdir(tmpdir) if f.startswith("audio")]
         if not files:
             raise HTTPException(status_code=500, detail="오디오 파일을 찾을 수 없습니다.")
@@ -85,7 +82,7 @@ def get_transcript_from_audio(url: str) -> str:
         actual_path = os.path.join(tmpdir, files[0])
         file_size = os.path.getsize(actual_path)
         if file_size > 25 * 1024 * 1024:
-            raise HTTPException(status_code=422, detail="영상이 너무 깁니다. 25MB 이하의 오디오만 지원합니다.")
+            raise HTTPException(status_code=422, detail="영상이 너무 깁니다. 25MB 이하만 지원합니다.")
 
         ext = os.path.splitext(files[0])[1].lstrip(".")
         mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
