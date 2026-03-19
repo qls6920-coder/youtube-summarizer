@@ -2,14 +2,12 @@ import os
 import re
 import httpx
 import json
-import tempfile
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
-import yt_dlp
 
 load_dotenv()
 
@@ -24,7 +22,6 @@ app.add_middleware(
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 
 class SummarizeRequest(BaseModel):
     url: str
@@ -44,7 +41,7 @@ def extract_video_id(url: str) -> str | None:
     return None
 
 
-def get_transcript_from_captions(video_id: str) -> str | None:
+def get_transcript(video_id: str) -> str:
     try:
         api = YouTubeTranscriptApi()
         transcript_list = api.list(video_id)
@@ -54,52 +51,13 @@ def get_transcript_from_captions(video_id: str) -> str | None:
             transcript = transcript_list.find_generated_transcript(["ko", "en"])
         fetched = transcript.fetch()
         return " ".join(snippet.text for snippet in fetched)
-    except Exception:
-        return None
-
-
-def get_transcript_from_audio(url: str) -> str:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        audio_path = os.path.join(tmpdir, "audio.%(ext)s")
-
-        ydl_opts = {
-            "format": "bestaudio[ext=m4a]/bestaudio",
-            "outtmpl": audio_path,
-            "noplaylist": True,
-            "quiet": True,
-        }
-
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"오디오 다운로드 실패: {str(e)}")
-
-        files = [f for f in os.listdir(tmpdir) if f.startswith("audio")]
-        if not files:
-            raise HTTPException(status_code=500, detail="오디오 파일을 찾을 수 없습니다.")
-
-        actual_path = os.path.join(tmpdir, files[0])
-        file_size = os.path.getsize(actual_path)
-        if file_size > 25 * 1024 * 1024:
-            raise HTTPException(status_code=422, detail="영상이 너무 깁니다. 25MB 이하만 지원합니다.")
-
-        ext = os.path.splitext(files[0])[1].lstrip(".")
-        mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
-
-        with open(actual_path, "rb") as f:
-            response = httpx.post(
-                GROQ_WHISPER_URL,
-                headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-                files={"file": (files[0], f, mime)},
-                data={"model": "whisper-large-v3-turbo", "response_format": "text", "language": "ko"},
-                timeout=120,
-            )
-
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Whisper 변환 실패: {response.text}")
-
-        return response.text
+    except (TranscriptsDisabled, NoTranscriptFound):
+        raise HTTPException(
+            status_code=422,
+            detail="이 영상에는 자막이 없어 요약할 수 없습니다. 자막이 있는 영상을 사용해주세요."
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"자막 로드 실패: {str(e)}")
 
 
 def build_prompt(transcript: str, mode: str, language: str) -> str:
@@ -114,7 +72,7 @@ def build_prompt(transcript: str, mode: str, language: str) -> str:
 
     instruction = mode_instructions.get(mode, mode_instructions["bullet"])
     trimmed = transcript[:4000]
-    return f"다음은 YouTube 영상의 내용입니다.\n\n{trimmed}\n\n위 내용을 {instruction}"
+    return f"다음은 YouTube 영상의 자막입니다.\n\n{trimmed}\n\n위 내용을 {instruction}"
 
 
 @app.post("/summarize")
@@ -126,13 +84,7 @@ async def summarize(req: SummarizeRequest):
     if not video_id:
         raise HTTPException(status_code=400, detail="올바른 YouTube URL이 아닙니다.")
 
-    transcript = get_transcript_from_captions(video_id)
-    if transcript:
-        source = "자막"
-    else:
-        transcript = get_transcript_from_audio(req.url)
-        source = "Whisper 음성인식"
-
+    transcript = get_transcript(video_id)
     prompt = build_prompt(transcript, req.mode, req.language)
 
     async def stream_response():
@@ -147,10 +99,7 @@ async def summarize(req: SummarizeRequest):
             "stream": True,
         }
 
-        info = json.dumps({"type": "content_block_delta", "delta": {"text": f"[{source} 기반 요약]\n\n"}})
-        yield f"data: {info}\n\n"
-
-        async with httpx.AsyncClient(timeout=120) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             async with client.stream("POST", GROQ_API_URL, headers=headers, json=payload) as resp:
                 if resp.status_code != 200:
                     body = await resp.aread()
