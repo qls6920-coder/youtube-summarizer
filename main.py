@@ -45,7 +45,6 @@ def extract_video_id(url: str) -> str | None:
 
 
 def get_transcript_from_captions(video_id: str) -> str | None:
-    """자막에서 텍스트 추출. 자막 없으면 None 반환"""
     try:
         api = YouTubeTranscriptApi()
         transcript_list = api.list(video_id)
@@ -60,18 +59,16 @@ def get_transcript_from_captions(video_id: str) -> str | None:
 
 
 def get_transcript_from_audio(url: str) -> str:
-    """오디오 다운로드 후 Whisper로 텍스트 변환"""
     with tempfile.TemporaryDirectory() as tmpdir:
-        audio_path = os.path.join(tmpdir, "audio.mp3")
+        audio_path = os.path.join(tmpdir, "audio.m4a")
 
-        # yt-dlp로 오디오 다운로드
+        # ffmpeg 없이 m4a 포맷으로 다운로드
         result = subprocess.run(
             [
                 "yt-dlp",
-                "-x", "--audio-format", "mp3",
-                "--audio-quality", "0",
-                "-o", audio_path,
+                "-f", "bestaudio[ext=m4a]/bestaudio",
                 "--no-playlist",
+                "-o", audio_path,
                 url,
             ],
             capture_output=True, text=True, timeout=120
@@ -80,22 +77,25 @@ def get_transcript_from_audio(url: str) -> str:
         if result.returncode != 0:
             raise HTTPException(status_code=500, detail=f"오디오 다운로드 실패: {result.stderr}")
 
-        if not os.path.exists(audio_path):
+        # 실제 다운로드된 파일 찾기
+        files = [f for f in os.listdir(tmpdir) if f.startswith("audio")]
+        if not files:
             raise HTTPException(status_code=500, detail="오디오 파일을 찾을 수 없습니다.")
 
-        # 파일 크기 확인 (Groq Whisper 최대 25MB)
-        file_size = os.path.getsize(audio_path)
+        actual_path = os.path.join(tmpdir, files[0])
+        file_size = os.path.getsize(actual_path)
         if file_size > 25 * 1024 * 1024:
             raise HTTPException(status_code=422, detail="영상이 너무 깁니다. 25MB 이하의 오디오만 지원합니다.")
 
-        # Groq Whisper API 호출
-        import httpx as _httpx
-        with open(audio_path, "rb") as f:
-            response = _httpx.post(
+        ext = os.path.splitext(files[0])[1].lstrip(".")
+        mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
+
+        with open(actual_path, "rb") as f:
+            response = httpx.post(
                 GROQ_WHISPER_URL,
                 headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-                files={"file": ("audio.mp3", f, "audio/mpeg")},
-                data={"model": "whisper-large-v3-turbo", "response_format": "text"},
+                files={"file": (files[0], f, mime)},
+                data={"model": "whisper-large-v3-turbo", "response_format": "text", "language": "ko"},
                 timeout=120,
             )
 
@@ -117,7 +117,6 @@ def build_prompt(transcript: str, mode: str, language: str) -> str:
 
     instruction = mode_instructions.get(mode, mode_instructions["bullet"])
     trimmed = transcript[:4000]
-
     return f"다음은 YouTube 영상의 내용입니다.\n\n{trimmed}\n\n위 내용을 {instruction}"
 
 
@@ -130,7 +129,6 @@ async def summarize(req: SummarizeRequest):
     if not video_id:
         raise HTTPException(status_code=400, detail="올바른 YouTube URL이 아닙니다.")
 
-    # 1) 자막 시도 → 없으면 Whisper로 음성 변환
     transcript = get_transcript_from_captions(video_id)
     if transcript:
         source = "자막"
@@ -152,7 +150,6 @@ async def summarize(req: SummarizeRequest):
             "stream": True,
         }
 
-        # 소스 정보 먼저 전송
         info = json.dumps({"type": "content_block_delta", "delta": {"text": f"[{source} 기반 요약]\n\n"}})
         yield f"data: {info}\n\n"
 
