@@ -6,182 +6,68 @@
   <title>YouTube 영상 요약기</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #f9f9f7;
-      --surface: #ffffff;
-      --border: #e5e4df;
-      --border-strong: #c8c7c0;
-      --text-primary: #1a1a18;
-      --text-secondary: #6b6b65;
-      --text-muted: #9e9e98;
-      --accent: #1a1a18;
-      --accent-text: #ffffff;
-      --danger-bg: #fff0ee;
-      --danger-border: #f5b8b0;
-      --danger-text: #a3301f;
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
+      --bg: #f9f9f7; --surface: #ffffff; --border: #e5e4df;
+      --border-strong: #c8c7c0; --text-primary: #1a1a18;
+      --text-secondary: #6b6b65; --text-muted: #9e9e98;
+      --accent: #1a1a18; --accent-text: #ffffff;
+      --danger-bg: #fff0ee; --danger-border: #f5b8b0; --danger-text: #a3301f;
+      --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
     }
-
-    body {
-      font-family: -apple-system, "Pretendard", "Apple SD Gothic Neo", sans-serif;
-      background: var(--bg);
-      color: var(--text-primary);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      padding: 3rem 1rem;
-    }
-
+    body { font-family: -apple-system, "Pretendard", "Apple SD Gothic Neo", sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; display: flex; justify-content: center; padding: 3rem 1rem; }
     .wrapper { width: 100%; max-width: 680px; }
-
     .header { margin-bottom: 2.5rem; }
     .header h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 6px; }
     .header p { font-size: 15px; color: var(--text-secondary); }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1.5rem;
-      margin-bottom: 1rem;
-    }
-
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1rem; }
     .input-row { display: flex; gap: 8px; margin-bottom: 1.25rem; }
-    input[type="text"] {
-      flex: 1; padding: 10px 14px; font-size: 14px;
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--bg); color: var(--text-primary); outline: none;
-      transition: border-color 0.15s;
-    }
+    input[type="text"] { flex: 1; padding: 10px 14px; font-size: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text-primary); outline: none; transition: border-color 0.15s; }
     input[type="text"]:focus { border-color: var(--border-strong); }
-
-    .btn {
-      padding: 10px 18px; font-size: 14px; font-weight: 500;
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--surface); color: var(--text-primary);
-      cursor: pointer; white-space: nowrap; transition: background 0.15s;
-    }
+    .btn { padding: 10px 18px; font-size: 14px; font-weight: 500; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); cursor: pointer; white-space: nowrap; transition: background 0.15s; }
     .btn:hover { background: var(--bg); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-primary {
-      background: var(--accent); color: var(--accent-text);
-      border-color: var(--accent);
-    }
+    .btn-primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
     .btn-primary:hover { opacity: 0.85; background: var(--accent); }
-
     .options-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; }
-    .chip {
-      padding: 6px 14px; font-size: 13px;
-      border: 1px solid var(--border); border-radius: 20px;
-      background: var(--surface); color: var(--text-secondary);
-      cursor: pointer; transition: all 0.15s;
-    }
-    .chip.active {
-      background: var(--text-primary); color: var(--accent-text);
-      border-color: var(--text-primary);
-    }
-
-    .control-row {
-      display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
-    }
+    .chip { padding: 6px 14px; font-size: 13px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--text-secondary); cursor: pointer; transition: all 0.15s; }
+    .chip.active { background: var(--text-primary); color: var(--accent-text); border-color: var(--text-primary); }
+    .control-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
     .control-group { display: flex; gap: 6px; align-items: center; }
     .control-label { font-size: 13px; color: var(--text-secondary); }
-    select {
-      padding: 6px 10px; font-size: 13px;
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--surface); color: var(--text-primary); cursor: pointer;
-    }
-
-    .status {
-      display: none; align-items: center; gap: 10px;
-      font-size: 14px; color: var(--text-secondary);
-      padding: 12px 0;
-    }
-    .spinner {
-      width: 16px; height: 16px; border-radius: 50%;
-      border: 2px solid var(--border);
-      border-top-color: var(--text-primary);
-      animation: spin 0.7s linear infinite;
-    }
+    select { padding: 6px 10px; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); cursor: pointer; }
+    .status { display: none; align-items: center; gap: 10px; font-size: 14px; color: var(--text-secondary); padding: 12px 0; }
+    .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--text-primary); animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .error {
-      display: none;
-      background: var(--danger-bg); border: 1px solid var(--danger-border);
-      color: var(--danger-text); font-size: 14px;
-      padding: 10px 14px; border-radius: var(--radius-sm);
-      margin-bottom: 1rem;
-    }
-
+    .error { display: none; background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); font-size: 14px; padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 1rem; }
     .result-card { display: none; }
-    .result-label {
-      font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-      color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px;
-    }
+    .result-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
     .video-meta { display: flex; gap: 12px; align-items: flex-start; }
-    .thumb {
-      width: 96px; height: 60px; border-radius: 6px; object-fit: cover;
-      background: var(--bg); flex-shrink: 0; border: 1px solid var(--border);
-    }
+    .thumb { width: 96px; height: 60px; border-radius: 6px; object-fit: cover; background: var(--bg); flex-shrink: 0; border: 1px solid var(--border); }
     .video-info h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; line-height: 1.4; }
     .video-info p { font-size: 13px; color: var(--text-secondary); }
-
-    .summary-text {
-      font-size: 15px; line-height: 1.85;
-      color: var(--text-primary); white-space: pre-wrap;
-    }
-    .cursor {
-      display: inline-block; width: 2px; height: 1em;
-      background: var(--text-primary);
-      animation: blink 1s step-end infinite;
-      vertical-align: text-bottom; margin-left: 1px;
-    }
+    .summary-text { font-size: 15px; line-height: 1.85; color: var(--text-primary); white-space: pre-wrap; }
+    .cursor { display: inline-block; width: 2px; height: 1em; background: var(--text-primary); animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; }
     @keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
-
     .actions { display: none; gap: 8px; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-
-    /* Backend URL 설정 배너 */
-    .config-banner {
-      background: #fffbeb; border: 1px solid #fde68a;
-      border-radius: var(--radius-sm); padding: 10px 14px;
-      font-size: 13px; color: #92400e; margin-bottom: 1rem;
-      display: flex; align-items: center; gap: 8px;
-    }
   </style>
 </head>
 <body>
 <div class="wrapper">
-
   <div class="header">
     <h1>YouTube 영상 요약기</h1>
     <p>URL을 입력하면 AI가 영상 내용을 자동으로 요약합니다</p>
   </div>
 
-  <!-- 백엔드 URL 설정 -->
-  <div class="card" style="margin-bottom:1rem;">
-    <div class="result-label">백엔드 서버 주소</div>
-    <div class="input-row" style="margin-bottom:0;">
-      <input type="text" id="backendUrl" value="http://localhost:8000" placeholder="http://your-server.com" />
-      <button class="btn" onclick="saveBackend()">저장</button>
-    </div>
-  </div>
-
-  <!-- 메인 입력 -->
   <div class="card">
     <div class="input-row">
       <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=..." />
       <button class="btn btn-primary" id="summarizeBtn" onclick="startSummary()">요약하기</button>
     </div>
-
     <div class="options-row">
       <div class="chip active" onclick="selectMode(this,'bullet')">핵심 요점</div>
       <div class="chip" onclick="selectMode(this,'summary')">단락 요약</div>
       <div class="chip" onclick="selectMode(this,'detailed')">상세 분석</div>
     </div>
-
     <div class="control-row">
       <div class="control-group">
         <span class="control-label">출력 언어</span>
@@ -198,7 +84,6 @@
   <div id="errorBox" class="error"></div>
   <div id="statusBox" class="status"><div class="spinner"></div><span id="statusText">처리 중...</span></div>
 
-  <!-- 영상 정보 -->
   <div id="videoCard" class="card result-card">
     <div class="result-label">영상 정보</div>
     <div class="video-meta">
@@ -210,7 +95,6 @@
     </div>
   </div>
 
-  <!-- 요약 결과 -->
   <div id="summaryCard" class="card result-card">
     <div class="result-label">AI 요약</div>
     <div class="summary-text" id="summaryText"></div>
@@ -219,22 +103,12 @@
       <button class="btn" onclick="resetAll()">새 영상</button>
     </div>
   </div>
-
 </div>
 
 <script>
+  // 백엔드 URL - Render 배포 주소로 고정
+  const BACKEND_URL = 'https://youtube-summarizer-oyq0.onrender.com';
   let currentMode = 'bullet';
-  let backendUrl = localStorage.getItem('backendUrl') || 'http://localhost:8000';
-
-  document.getElementById('backendUrl').value = backendUrl;
-
-  function saveBackend() {
-    backendUrl = document.getElementById('backendUrl').value.trim().replace(/\/$/, '');
-    localStorage.setItem('backendUrl', backendUrl);
-    const btn = event.target;
-    btn.textContent = '저장됨 ✓';
-    setTimeout(() => btn.textContent = '저장', 1500);
-  }
 
   function selectMode(el, mode) {
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
@@ -290,7 +164,6 @@
     const lang = document.getElementById('langSelect').value;
 
     if (!url) { showError('YouTube URL을 입력해주세요.'); return; }
-
     const videoId = extractVideoId(url);
     if (!videoId) { showError('올바른 YouTube URL이 아닙니다.'); return; }
 
@@ -299,17 +172,16 @@
     document.getElementById('actionsRow').style.display = 'none';
     document.getElementById('errorBox').style.display = 'none';
 
-    // 썸네일 & 영상 카드 표시
     const thumb = document.getElementById('videoThumb');
     thumb.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
     document.getElementById('videoTitle').textContent = '영상 정보 로딩 중...';
-    document.getElementById('videoMeta').textContent = videoId;
+    document.getElementById('videoMeta').textContent = url;
     document.getElementById('videoCard').style.display = 'block';
 
-    showStatus('자막을 가져오는 중...');
+    showStatus('자막을 가져오는 중... (처음 요청은 30초~1분 걸릴 수 있어요)');
 
     try {
-      const response = await fetch(`${backendUrl}/summarize`, {
+      const response = await fetch(`${BACKEND_URL}/summarize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, mode: currentMode, language: lang }),
@@ -322,7 +194,6 @@
 
       showStatus('AI가 요약하는 중...');
       document.getElementById('videoTitle').textContent = `YouTube 영상 (${videoId})`;
-      document.getElementById('videoMeta').textContent = url;
 
       document.getElementById('summaryCard').style.display = 'block';
       const summaryEl = document.getElementById('summaryText');
